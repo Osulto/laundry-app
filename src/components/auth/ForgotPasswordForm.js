@@ -1,37 +1,90 @@
 import React, { useState } from 'react';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { auth, db } from '../../firebase/config';
 
-const ForgotPasswordForm = ({ onReset, switchToLogin }) => {
+
+
+const ForgotPasswordForm = ({ onReset, switchToLogin, checkEmailExists }) => {
     const [email, setEmail] = useState('');
-    const [answer1, setAnswer1] = useState('');
-    const [answer2, setAnswer2] = useState('');
+    const [securityQuestion, setSecurityQuestion] = useState('');
+    const [securityAnswer, setSecurityAnswer] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
-    const [showQuestions, setShowQuestions] = useState(false);
+    const [checkingEmail, setCheckingEmail] = useState(false);
+    const [step, setStep] = useState(1); // 1 = email input, 2 = security question
 
-    const handleEmailSubmit = (e) => {
+    const handleEmailSubmit = async (e) => {
         e.preventDefault();
-        if (email.trim()) {
-            setShowQuestions(true);
+        setLoading(true);
+        setError('');
+        setSuccess('');
+        setCheckingEmail(true);
+    
+        try {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", email.trim()));
+            const snapshot = await getDocs(q);
+    
+            if (snapshot.empty) {
+                setError("No account found with this email.");
+            } else {
+                const userDoc = snapshot.docs[0];
+                const userData = userDoc.data();
+                setSecurityQuestion(userData.securityQuestion);
+                setStep(2);
+            }
+        } catch (err) {
+            console.error("Email check failed:", err);
+            setError("Something went wrong while checking the email.");
+        } finally {
+            setLoading(false);
+            setCheckingEmail(false);
         }
     };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
         setLoading(true);
-
-        const result = await onReset(email, answer1, answer2);
-
-        if (result.success) {
-            setSuccess(result.message);
-        } else {
-            setError(result.message);
+    
+        try {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", email.trim()));
+            const snapshot = await getDocs(q);
+    
+            if (!snapshot.empty) {
+                const userDoc = snapshot.docs[0];
+                const userData = userDoc.data();
+    
+                const encoder = new TextEncoder();
+                const data = encoder.encode(securityAnswer.toLowerCase().trim());
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashedInput = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+                if (hashedInput === userData.securityAnswerHash) {
+                    await sendPasswordResetEmail(auth, email.trim());
+                    setSuccess("Password reset email sent!");
+                } else {
+                    setError("Incorrect answer. Please try again.");
+                }
+            } else {
+                setError("Email not found.");
+            }
+        } catch (err) {
+            console.error("Reset failed:", err);
+            setError("Failed to send reset link.");
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
+    
+    
+    
+
 
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
@@ -41,11 +94,12 @@ const ForgotPasswordForm = ({ onReset, switchToLogin }) => {
                 <p className="bg-green-100 text-green-700 p-3 rounded-md mb-4 text-sm">{success}</p>
             ) : (
                 <>
-                    {!showQuestions ? (
+                    {step === 1 ? (
                         <form onSubmit={handleEmailSubmit}>
                             <p className="text-center text-gray-600 text-sm mb-6">
                                 Enter your email to proceed with password reset.
                             </p>
+                            {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
                             <div className="mb-4">
                                 <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-email">
                                     Email Address
@@ -61,54 +115,38 @@ const ForgotPasswordForm = ({ onReset, switchToLogin }) => {
                             </div>
                             <button
                                 type="submit"
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline w-full transition duration-300"
+                                disabled={checkingEmail}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg w-full flex items-center justify-center transition duration-300 disabled:bg-blue-300"
                             >
-                                Next
+                                {checkingEmail ? <LoadingSpinner small /> : 'Next'}
                             </button>
                         </form>
                     ) : (
                         <form onSubmit={handleSubmit}>
                             <p className="text-center text-gray-600 text-sm mb-6">
-                                Answer your security questions to receive a reset link.
+                                Answer your security question to receive a reset link.
                             </p>
                             {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
-
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-q1">
-                                    What was the name of your first-grade teacher?
-                                </label>
-                                <input
-                                    id="reset-q1"
-                                    type="text"
-                                    value={answer1}
-                                    onChange={(e) => setAnswer1(e.target.value)}
-                                    className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                />
-                            </div>
                             <div className="mb-6">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-q2">
-                                    What is the name of the street you grew up on?
+                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="security-answer">
+                                    {securityQuestion}
                                 </label>
                                 <input
-                                    id="reset-q2"
+                                    id="security-answer"
                                     type="text"
-                                    value={answer2}
-                                    onChange={(e) => setAnswer2(e.target.value)}
+                                    value={securityAnswer}
+                                    onChange={(e) => setSecurityAnswer(e.target.value)}
                                     className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     required
                                 />
                             </div>
-
-                            <div className="flex items-center justify-between">
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline w-full transition duration-300 disabled:bg-blue-300 flex items-center justify-center"
-                                >
-                                    {loading ? <LoadingSpinner small /> : 'Send Reset Link'}
-                                </button>
-                            </div>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg w-full flex items-center justify-center transition duration-300 disabled:bg-blue-300"
+                            >
+                                {loading ? <LoadingSpinner small /> : 'Send Reset Link'}
+                            </button>
                         </form>
                     )}
                 </>

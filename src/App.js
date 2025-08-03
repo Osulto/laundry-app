@@ -24,6 +24,21 @@ const hashString = async (str) => {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
+const checkEmailExists = async (email) => {
+    const q = query(collection(db, 'users'), where('email', '==', email));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+        const userDoc = snapshot.docs[0].data();
+        return {
+            exists: true,
+            securityQuestion: userDoc.securityQuestion || 'What is your favorite color?',
+        };
+    }
+    return { exists: false };
+};
+
+
+
 const getFriendlyAuthErrorMessage = (errorCode) => {
     switch (errorCode) {
         case 'auth/invalid-email':
@@ -44,10 +59,9 @@ export default function App() {
     const { user, loading } = useAuth();
     const [view, setView] = useState('login'); 
 
-    const handleSignup = async (email, password, fullName, answer1, answer2) => {
+    const handleSignup = async (email, password, fullName, securityAnswer, selectedQuestion) => {
         try {
-            const hashedAnswer1 = await hashString(answer1);
-            const hashedAnswer2 = await hashString(answer2);
+            const hashedAnswer = await hashString(securityAnswer);
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const newUser = userCredential.user;
             await updateProfile(newUser, { displayName: fullName });
@@ -56,7 +70,8 @@ export default function App() {
                 email: newUser.email,
                 role: 'Customer',
                 createdAt: new Date(),
-                securityAnswers: { q1: hashedAnswer1, q2: hashedAnswer2 }
+                securityQuestion: selectedQuestion,
+                securityAnswerHash: hashedAnswer
             });
             return { success: true };
         } catch (error) {
@@ -83,38 +98,36 @@ export default function App() {
         }
     };
 
-    const handlePasswordReset = async (email, answer1, answer2) => {
+    const handlePasswordReset = async (email, securityAnswer) => {
         try {
-            // 1. Find the user by email
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("email", "==", email));
-            const querySnapshot = await getDocs(q);
-
+            const querySnapshot = await getDocs(q);  // ✅ You missed this line before
+    
             if (querySnapshot.empty) {
                 return { success: false, message: "No account found with that email address." };
             }
-
+    
             const userDoc = querySnapshot.docs[0];
             const userData = userDoc.data();
-
-            // 2. Hash the provided answers to compare them
-            const hashedAnswer1 = await hashString(answer1);
-            const hashedAnswer2 = await hashString(answer2);
-
-            // 3. Securely compare the hashes
-            if (hashedAnswer1 !== userData.securityAnswers?.q1 || hashedAnswer2 !== userData.securityAnswers?.q2) {
-                return { success: false, message: "The security answers provided are incorrect." };
+    
+            const hashedAnswer = await hashString(securityAnswer);
+    
+            if (hashedAnswer !== userData.securityAnswerHash) {
+                return { success: false, message: "The security answer is incorrect." };
             }
-
-            // 4. If answers match, send the reset email
+    
             await sendPasswordResetEmail(auth, email);
-            return { success: true, message: "A password reset link has been sent to your email address." };
-
+            return { success: true, message: "A password reset link has been sent to your email." };
+    
         } catch (error) {
             console.error("Password Reset Error:", error);
             return { success: false, message: "An unexpected error occurred. Please try again." };
         }
     };
+    
+    
+
 
     if (loading) {
         return (
@@ -129,7 +142,7 @@ export default function App() {
             case 'signup':
                 return <SignUpForm onSignup={handleSignup} switchToLogin={() => setView('login')} />;
             case 'forgotPassword':
-                return <ForgotPasswordForm onReset={handlePasswordReset} switchToLogin={() => setView('login')} />;
+                return <ForgotPasswordForm onReset={handlePasswordReset} switchToLogin={() => setView('login')} checkEmailExists={checkEmailExists} />;
             case 'login':
             default:
                 return <LoginForm onLogin={handleLogin} switchToSignup={() => setView('signup')} switchToForgotPassword={() => setView('forgotPassword')} />;
