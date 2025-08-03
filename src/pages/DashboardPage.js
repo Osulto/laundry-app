@@ -195,14 +195,12 @@ const DashboardPage = ({ user, onLogout, lastLoginInfo }) => {
         <div className="bg-white p-8 rounded-lg shadow-lg text-left w-full max-w-5xl mx-auto">
             <div className="flex justify-between items-start mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Welcome, {user?.displayName || user?.fullName}!</h1>
-                    {lastLoginInfo && (
-                        <p className="bg-yellow-100 text-yellow-900 p-3 rounded-md mt-2 max-w-md text-sm">
+                        <p className="text-red-900 mt-2 max-w-md text-sm">
                         Last login was on{' '}
-                        <strong>{new Date(lastLoginInfo.timestamp).toLocaleString()}</strong> -{' '}
-                        {lastLoginInfo.success ? 'Successful' : 'Failed'}
+                        <strong>{new Date(lastLoginInfo.timestamp).toLocaleString()}</strong>
                         </p>
-                    )}
+                    <h1 className="text-3xl font-bold text-gray-800">Welcome, {user?.displayName || user?.fullName}!</h1>
+                    
                 </div>
                 <button
                     onClick={onLogout}
