@@ -8,6 +8,14 @@ const ForgotPasswordForm = ({ onReset, switchToLogin }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showQuestions, setShowQuestions] = useState(false);
+
+    const handleEmailSubmit = (e) => {
+        e.preventDefault();
+        if (email.trim()) {
+            setShowQuestions(true);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -28,65 +36,81 @@ const ForgotPasswordForm = ({ onReset, switchToLogin }) => {
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
             <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Reset Password</h2>
-            
+
             {success ? (
-                 <p className="bg-green-100 text-green-700 p-3 rounded-md mb-4 text-sm">{success}</p>
+                <p className="bg-green-100 text-green-700 p-3 rounded-md mb-4 text-sm">{success}</p>
             ) : (
                 <>
-                    <p className="text-center text-gray-600 text-sm mb-6">
-                        Enter your email and answer your security questions to receive a password reset link.
-                    </p>
-                    {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
-                    <form onSubmit={handleSubmit}>
-                        <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-email">
-                                Email Address
-                            </label>
-                            <input
-                                id="reset-email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-q1">
-                                What was the name of your first-grade teacher?
-                            </label>
-                            <input
-                                id="reset-q1"
-                                type="text"
-                                value={answer1}
-                                onChange={(e) => setAnswer1(e.target.value)}
-                                className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-                        <div className="mb-6">
-                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-q2">
-                               What is the name of the street you grew up on?
-                            </label>
-                            <input
-                                id="reset-q2"
-                                type="text"
-                                value={answer2}
-                                onChange={(e) => setAnswer2(e.target.value)}
-                                className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-                        <div className="flex items-center justify-between">
+                    {!showQuestions ? (
+                        <form onSubmit={handleEmailSubmit}>
+                            <p className="text-center text-gray-600 text-sm mb-6">
+                                Enter your email to proceed with password reset.
+                            </p>
+                            <div className="mb-4">
+                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-email">
+                                    Email Address
+                                </label>
+                                <input
+                                    id="reset-email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                            </div>
                             <button
                                 type="submit"
-                                disabled={loading}
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline w-full transition duration-300 disabled:bg-blue-300 flex items-center justify-center"
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline w-full transition duration-300"
                             >
-                                {loading ? <LoadingSpinner small /> : 'Send Reset Link'}
+                                Next
                             </button>
-                        </div>
-                    </form>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleSubmit}>
+                            <p className="text-center text-gray-600 text-sm mb-6">
+                                Answer your security questions to receive a reset link.
+                            </p>
+                            {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
+
+                            <div className="mb-4">
+                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-q1">
+                                    What was the name of your first-grade teacher?
+                                </label>
+                                <input
+                                    id="reset-q1"
+                                    type="text"
+                                    value={answer1}
+                                    onChange={(e) => setAnswer1(e.target.value)}
+                                    className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-6">
+                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="reset-q2">
+                                    What is the name of the street you grew up on?
+                                </label>
+                                <input
+                                    id="reset-q2"
+                                    type="text"
+                                    value={answer2}
+                                    onChange={(e) => setAnswer2(e.target.value)}
+                                    className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    required
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline w-full transition duration-300 disabled:bg-blue-300 flex items-center justify-center"
+                                >
+                                    {loading ? <LoadingSpinner small /> : 'Send Reset Link'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
                 </>
             )}
 
