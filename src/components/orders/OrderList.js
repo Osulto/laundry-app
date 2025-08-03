@@ -9,6 +9,16 @@ const OrderList = ({ user }) => {
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
+    const toJsDate = (timestamp) => {
+        if (!timestamp) return null;
+        if (typeof timestamp.toDate === 'function') {
+          return timestamp.toDate();
+        }
+        if (timestamp instanceof Date) return timestamp;
+        return null;
+      };
+      
+
     const isManager = user.role === 'Manager' || user.role === 'Administrator';
 
     useEffect(() => {
@@ -29,8 +39,8 @@ const OrderList = ({ user }) => {
     
             // Sort orders by date
             orderList.sort((a, b) => {
-                const dateA = a.createdAt?.toDate?.() ?? 0;
-                const dateB = b.createdAt?.toDate?.() ?? 0;
+                const dateA = toJsDate(a.createdAt)?.getTime() ?? 0;
+                const dateB = toJsDate(b.createdAt)?.getTime() ?? 0;
                 return dateB - dateA;
               });
               
@@ -103,7 +113,7 @@ const OrderList = ({ user }) => {
                                     </td>
                                 )}
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <ul className="text-gray-900 whitespace-no-wrap list-disc list-inside space-y-1">
+                                    <ul className="text-gray-900 whitespace-no-wrap list-inside space-y-1">
                                         {Array.isArray(order.items)
                                             ? order.items.map((item, index) => (
                                                 <li key={index}>{item.quantity} × {item.name}</li>
@@ -114,7 +124,8 @@ const OrderList = ({ user }) => {
                                     {order.notes && <p className="text-gray-600 text-xs mt-1">Notes: {order.notes}</p>}
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <p className="text-gray-900 whitespace-no-wrap">{order.createdAt.toDate().toLocaleDateString()}</p>
+                                <p className="text-gray-900 whitespace-no-wrap">{toJsDate(order.createdAt)?.toLocaleDateString() ?? 'No date available'}</p>
+
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                     {isManager ? (
