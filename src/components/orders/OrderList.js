@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import LoadingSpinner from '../common/LoadingSpinner';
 
@@ -12,34 +12,40 @@ const OrderList = ({ user }) => {
     const isManager = user.role === 'Manager' || user.role === 'Administrator';
 
     useEffect(() => {
-        const fetchOrders = async () => {
-            try {
-                const ordersCollection = collection(db, 'orders');
-                let q;
-
-                if (isManager) {
-                    q = query(ordersCollection);
-                } else {
-                    q = query(ordersCollection, where("customerId", "==", user.uid));
-                }
-
-                const orderSnapshot = await getDocs(q);
-                const orderList = orderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                // Sort orders by date
-                orderList.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
-
-                setOrders(orderList);
-            } catch (err) {
-                console.error("Error fetching orders:", err);
-                setError('Failed to fetch orders.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchOrders();
+        const ordersCollection = collection(db, 'orders');
+        let q;
+    
+        if (isManager) {
+            q = query(ordersCollection);
+        } else {
+            q = query(ordersCollection, where("customerId", "==", user.uid));
+        }
+    
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const orderList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+    
+            // Sort orders by date
+            orderList.sort((a, b) => {
+                const dateA = a.createdAt?.toDate?.() ?? 0;
+                const dateB = b.createdAt?.toDate?.() ?? 0;
+                return dateB - dateA;
+              });
+              
+    
+            setOrders(orderList);
+            setLoading(false);
+        }, (err) => {
+            console.error("Error with real-time orders:", err);
+            setError('Failed to load real-time orders.');
+            setLoading(false);
+        });
+    
+        return () => unsubscribe(); // Clean up listener when component unmounts
     }, [user.uid, user.role, isManager]);
+    
 
     const handleStatusChange = async (orderId, newStatus) => {
         try {
@@ -123,14 +129,23 @@ const OrderList = ({ user }) => {
                                             <option value="Completed">Completed</option>
                                         </select>
                                     ) : (
-                                        <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${
-                                            order.status === 'Completed' ? 'text-green-900' : 'text-yellow-900'
-                                        }`}>
-                                            <span aria-hidden className={`absolute inset-0 ${
-                                                order.status === 'Completed' ? 'bg-green-200' : 'bg-yellow-200'
-                                            } opacity-50 rounded-full`}></span>
-                                            <span className="relative">{order.status}</span>
-                                        </span>
+                                        <span
+                                            className={`relative inline-block px-3 py-1 font-semibold leading-tight rounded-full
+                                                ${
+                                                order.status === 'Completed'
+                                                    ? 'text-green-900 bg-green-200'
+                                                    : order.status === 'Pending'
+                                                    ? 'text-yellow-900 bg-yellow-200'
+                                                    : order.status === 'In Progress'
+                                                    ? 'text-blue-900 bg-blue-200'
+                                                    : order.status === 'Ready for Pickup'
+                                                    ? 'text-purple-900 bg-purple-200'
+                                                    : 'text-gray-900 bg-gray-200'
+                                                }
+                                            `}
+                                            >
+                                            {order.status}
+                                            </span>
                                     )}
                                 </td>
                             </tr>
