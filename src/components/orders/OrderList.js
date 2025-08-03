@@ -144,14 +144,14 @@ const OrderList = ({ user }) => {
                                             className={`relative inline-block px-3 py-1 font-semibold leading-tight rounded-full
                                                 ${
                                                 order.status === 'Completed'
-                                                    ? 'text-green-900 bg-green-200'
+                                                    ? 'text-green-900 bg-green-100'
                                                     : order.status === 'Pending'
-                                                    ? 'text-yellow-900 bg-yellow-200'
+                                                    ? 'text-yellow-900 bg-yellow-100'
                                                     : order.status === 'In Progress'
-                                                    ? 'text-blue-900 bg-blue-200'
+                                                    ? 'text-blue-900 bg-blue-100'
                                                     : order.status === 'Ready for Pickup'
-                                                    ? 'text-purple-900 bg-purple-200'
-                                                    : 'text-gray-900 bg-gray-200'
+                                                    ? 'text-purple-900 bg-purple-100'
+                                                    : 'text-gray-900 bg-gray-100'
                                                 }
                                             `}
                                             >
