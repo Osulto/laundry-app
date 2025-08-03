@@ -51,23 +51,19 @@ const UserManagement = () => {
     const handleDeleteUser = async (userId, userFullName) => {
         setError('');
         setSuccess('');
-
-        if (window.confirm(`Are you sure you want to delete the user "${userFullName}"? This will permanently remove their login and all their data.`)) {
+    
+        if (window.confirm(`Are you sure you want to delete the user "${userFullName}"? This will remove their data.`)) {
             try {
-                const functions = getFunctions();
-                const deleteUserCallable = httpsCallable(functions, 'deleteUser');
-                
-                await deleteUserCallable({ uid: userId });
-
+                await deleteDoc(doc(db, 'users', userId));
                 setUsers(users.filter(user => user.id !== userId));
                 setSuccess(`Successfully deleted user ${userFullName}.`);
-                
             } catch (err) {
-                console.error("Error calling deleteUser function:", err);
+                console.error("Error deleting user document:", err);
                 setError(`Failed to delete user: ${err.message}`);
             }
         }
     };
+    
 
     if (loading) {
         return <LoadingSpinner />;
