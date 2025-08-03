@@ -95,7 +95,7 @@ const OrderList = ({ user }) => {
 
     return (
         <div className="mt-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Your Orders</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">Orders</h3>
             {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
 
             {isManager && (
