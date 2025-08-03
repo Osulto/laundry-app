@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { db } from '../firebase/config';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 // Import the new components
 import CreateOrderForm from '../components/orders/CreateOrderForm';
 import OrderList from '../components/orders/OrderList';
+import ChangePasswordForm from '../components/auth/ChangePasswordForm';
+import { UserIcon } from '@heroicons/react/24/outline';
+
 
 // --- User Management Component (for Admins) ---
 const UserManagement = () => {
@@ -174,7 +176,7 @@ const CustomerDashboard = ({ user }) => (
 
 
 // --- Main Dashboard Page Component ---
-const DashboardPage = ({ user, onLogout, lastLoginInfo }) => {
+const DashboardPage = ({ user, onLogout, lastLoginInfo, onNavigateToChangePassword }) => {
     const renderDashboardByRole = () => {
         switch (user.role) {
             case 'Administrator':
@@ -186,33 +188,78 @@ const DashboardPage = ({ user, onLogout, lastLoginInfo }) => {
                 return <CustomerDashboard user={user} />;
         }
     };
+    const [showModal, setShowModal] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (!e.target.closest('#user-dropdown')) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg text-left w-full max-w-5xl mx-auto">
             <div className="flex justify-between items-start mb-6">
                 <div>
-                        <p className="text-red-900 mt-2 max-w-md text-sm">
+                    <p className="text-red-900 mt-2 max-w-md text-sm">
                         Last login was{' '}
                         <strong>
                             {lastLoginInfo && lastLoginInfo.timestamp
-                            ? new Date(lastLoginInfo.timestamp).toLocaleString()
-                            : 'No login data recorded yet'}
+                                ? new Date(lastLoginInfo.timestamp).toLocaleString()
+                                : 'No login data recorded yet'}
                         </strong>
-                        </p>
-                    <h1 className="text-3xl font-bold text-gray-800">Welcome, {user?.displayName || user?.fullName}!</h1>
-                    
+                    </p>
+                    <h1 className="text-3xl font-bold text-gray-800">
+                        Welcome, {user?.displayName || user?.fullName}!
+                    </h1>
+
                 </div>
-                <button
-                    onClick={onLogout}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-300"
-                >
-                    Logout
-                </button>
+                <div className="relative mt-1" id="user-dropdown">
+                    <button
+                        onClick={() => setShowDropdown((prev) => !prev)}
+                        className="p-2 rounded-full hover:bg-gray-100 transition"
+                        title="User Menu"
+                    >
+                        <UserIcon className="h-7 w-7 text-gray-700" />
+                    </button>
+
+                    {showDropdown && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50">
+                            <button
+                                onClick={() => {
+                                    setShowModal(true);
+                                    setShowDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                                Change Password
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onLogout();
+                                    setShowDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+{showModal && <ChangePasswordForm onClose={() => setShowModal(false)} />}
             </div>
-            
+    
             {renderDashboardByRole()}
         </div>
     );
+    
 };
 
 export default DashboardPage;
