@@ -154,7 +154,7 @@ const AdminDashboard = ({ user }) => (
 const ManagerDashboard = ({ user }) => (
     <div>
         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6">
-            <h3 className="font-bold">Manager (Role A) Dashboard</h3>
+            <h3 className="font-bold">Manager Dashboard</h3>
             <p>You can view and manage all customer orders.</p>
         </div>
         <OrderList user={user} />
@@ -164,7 +164,7 @@ const ManagerDashboard = ({ user }) => (
 const CustomerDashboard = ({ user }) => (
     <div>
         <div className="bg-indigo-100 border-l-4 border-indigo-500 text-indigo-700 p-4 rounded-md">
-            <h3 className="font-bold">Customer (Role B) Dashboard</h3>
+            <h3 className="font-bold">Customer Dashboard</h3>
             <p>Place a new order or view your existing orders below.</p>
         </div>
         <CreateOrderForm user={user} />
@@ -192,7 +192,6 @@ const DashboardPage = ({ user, onLogout }) => {
             <div className="flex justify-between items-start mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">Welcome, {user?.displayName || user?.fullName}!</h1>
-                    <p className="text-gray-600">Role: <span className="font-semibold text-blue-600">{user?.role}</span></p>
                 </div>
                 <button
                     onClick={onLogout}
