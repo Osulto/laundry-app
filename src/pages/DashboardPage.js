@@ -196,8 +196,12 @@ const DashboardPage = ({ user, onLogout, lastLoginInfo }) => {
             <div className="flex justify-between items-start mb-6">
                 <div>
                         <p className="text-red-900 mt-2 max-w-md text-sm">
-                        Last login was on{' '}
-                        <strong>{new Date(lastLoginInfo.timestamp).toLocaleString()}</strong>
+                        Last login was{' '}
+                        <strong>
+                            {lastLoginInfo && lastLoginInfo.timestamp
+                            ? new Date(lastLoginInfo.timestamp).toLocaleString()
+                            : 'No login data recorded yet'}
+                        </strong>
                         </p>
                     <h1 className="text-3xl font-bold text-gray-800">Welcome, {user?.displayName || user?.fullName}!</h1>
                     
