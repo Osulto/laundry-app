@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import LoadingSpinner from '../common/LoadingSpinner';
 
@@ -7,6 +7,7 @@ const OrderList = ({ user }) => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
     const isManager = user.role === 'Manager' || user.role === 'Administrator';
 
@@ -16,8 +17,6 @@ const OrderList = ({ user }) => {
                 const ordersCollection = collection(db, 'orders');
                 let q;
 
-                // If the user is a Manager/Admin, fetch all orders.
-                // Otherwise, fetch only the orders for the current customer.
                 if (isManager) {
                     q = query(ordersCollection);
                 } else {
@@ -26,16 +25,17 @@ const OrderList = ({ user }) => {
 
                 const orderSnapshot = await getDocs(q);
                 const orderList = orderSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                // Sort orders by creation date, newest first
+
+                // Sort orders by date
                 orderList.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
-                
+
                 setOrders(orderList);
             } catch (err) {
                 console.error("Error fetching orders:", err);
                 setError('Failed to fetch orders.');
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
 
         fetchOrders();
@@ -52,15 +52,32 @@ const OrderList = ({ user }) => {
         }
     };
 
-    if (loading) {
-        return <LoadingSpinner />;
-    }
+    const filteredOrders = orders.filter(order => {
+        const query = searchQuery.toLowerCase();
+        return (
+            order.customerName?.toLowerCase().includes(query) ||
+            order.status?.toLowerCase().includes(query)
+        );
+    });
+
+    if (loading) return <LoadingSpinner />;
 
     return (
         <div className="mt-6">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Your Orders</h3>
             {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
-            
+
+            {isManager && (
+                <input
+                    type="text"
+                    placeholder="Search by customer or status"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="mb-4 p-2 border border-gray-300 rounded-md w-full"
+                />
+            )}
+
+
             <div className="overflow-x-auto bg-white rounded-lg shadow">
                 <table className="min-w-full leading-normal">
                     <thead>
@@ -72,21 +89,22 @@ const OrderList = ({ user }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {orders.length > 0 ? orders.map((order) => (
+                        {filteredOrders.length > 0 ? filteredOrders.map(order => (
                             <tr key={order.id}>
-                                {isManager && <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{order.customerName}</p></td>}
+                                {isManager && (
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                        <p className="text-gray-900 whitespace-no-wrap">{order.customerName}</p>
+                                    </td>
+                                )}
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                <ul className="text-gray-900 whitespace-no-wrap list-disc list-inside space-y-1">
-                                {Array.isArray(order.items)
-                                    ? order.items.map((item, index) => (
-                                        <li key={index}>{item.quantity} × {item.name}</li>
-                                    ))
-                                    : (
-                                        <li className="text-red-600 text-sm">Invalid or missing items</li>
-                                    )}
-                                </ul>
-
-
+                                    <ul className="text-gray-900 whitespace-no-wrap list-disc list-inside space-y-1">
+                                        {Array.isArray(order.items)
+                                            ? order.items.map((item, index) => (
+                                                <li key={index}>{item.quantity} × {item.name}</li>
+                                            ))
+                                            : <li className="text-red-600 text-sm">Invalid or missing items</li>
+                                        }
+                                    </ul>
                                     {order.notes && <p className="text-gray-600 text-xs mt-1">Notes: {order.notes}</p>}
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
@@ -94,7 +112,11 @@ const OrderList = ({ user }) => {
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                     {isManager ? (
-                                        <select value={order.status} onChange={(e) => handleStatusChange(order.id, e.target.value)} className="block w-full bg-white border border-gray-300 rounded-md p-1">
+                                        <select
+                                            value={order.status}
+                                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                            className="block w-full bg-white border border-gray-300 rounded-md p-1"
+                                        >
                                             <option value="Pending">Pending</option>
                                             <option value="In Progress">In Progress</option>
                                             <option value="Ready for Pickup">Ready for Pickup</option>
@@ -114,7 +136,7 @@ const OrderList = ({ user }) => {
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan={isManager ? 4 : 3} className="text-center py-10 text-gray-500">No orders found.</td>
+                                <td colSpan={isManager ? 4 : 3} className="text-center py-10 text-gray-500">No matching orders found.</td>
                             </tr>
                         )}
                     </tbody>
