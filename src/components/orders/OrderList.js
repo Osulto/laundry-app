@@ -1,13 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, onSnapshot,deleteDoc} from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { TrashIcon } from '@heroicons/react/24/outline';
+
+
 
 const OrderList = ({ user }) => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+
+    const handleDeleteOrder = async (orderId) => {
+        if (!window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) return;
+        try {
+            await deleteDoc(doc(db, 'orders', orderId));
+            setOrders(orders.filter(order => order.id !== orderId));
+        } catch (err) {
+            console.error("Error deleting order:", err);
+            setError('Failed to delete order.');
+        }
+    };
+    
 
     const toJsDate = (timestamp) => {
         if (!timestamp) return null;
@@ -96,14 +111,20 @@ const OrderList = ({ user }) => {
 
             <div className="overflow-x-auto bg-white rounded-lg shadow">
                 <table className="min-w-full leading-normal">
-                    <thead>
-                        <tr>
-                            {isManager && <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>}
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Items</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                        </tr>
-                    </thead>
+                <thead>
+                <tr>
+                    {isManager && <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>}
+                    <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Items</th>
+                    <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                    <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    {isManager && (
+                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    )}
+                </tr>
+            </thead>
+
                     <tbody>
                         {filteredOrders.length > 0 ? filteredOrders.map(order => (
                             <tr key={order.id}>
@@ -159,10 +180,21 @@ const OrderList = ({ user }) => {
                                             </span>
                                     )}
                                 </td>
+                                {isManager && (
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-center">
+                                        <button
+                                            onClick={() => handleDeleteOrder(order.id)}
+                                            className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                            title="Delete Order"
+                                        >
+                                        <TrashIcon className="h-5 w-5" />
+                                        </button>
+                                    </td>
+                                )}
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan={isManager ? 4 : 3} className="text-center py-10 text-gray-500">No matching orders found.</td>
+                                <td colSpan={isManager ? 5 : 4} className="text-center py-10 text-gray-500">No matching orders found.</td>
                             </tr>
                         )}
                     </tbody>
