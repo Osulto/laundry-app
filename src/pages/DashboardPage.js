@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { TrashIcon } from '@heroicons/react/24/outline';
 import { db } from '../firebase/config';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 // Import the new components
@@ -85,7 +86,7 @@ const UserManagement = () => {
                             <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
                             <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Role</th>
                             <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Change Role</th>
-                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th> 
                         </tr>
                     </thead>
                     <tbody>
@@ -122,13 +123,16 @@ const UserManagement = () => {
                                     </select>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <button
-                                        onClick={() => handleDeleteUser(user.id, user.fullName)}
-                                        disabled={user.role === 'Administrator'}
-                                        className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-                                    >
-                                        Delete
-                                    </button>
+                                    <div className="flex justify-center items-center h-full">
+                                        <button
+                                            onClick={() => handleDeleteUser(user.id, user.fullName)}
+                                            disabled={user.role === 'Administrator'}
+                                            className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                            title="Delete User"
+                                        >
+                                            <TrashIcon className="h-5 w-5" />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
