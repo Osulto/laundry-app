@@ -76,7 +76,17 @@ const OrderList = ({ user }) => {
                             <tr key={order.id}>
                                 {isManager && <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p className="text-gray-900 whitespace-no-wrap">{order.customerName}</p></td>}
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <p className="text-gray-900 whitespace-no-wrap">{order.items}</p>
+                                <ul className="text-gray-900 whitespace-no-wrap list-disc list-inside space-y-1">
+                                {Array.isArray(order.items)
+                                    ? order.items.map((item, index) => (
+                                        <li key={index}>{item.quantity} × {item.name}</li>
+                                    ))
+                                    : (
+                                        <li className="text-red-600 text-sm">Invalid or missing items</li>
+                                    )}
+                                </ul>
+
+
                                     {order.notes && <p className="text-gray-600 text-xs mt-1">Notes: {order.notes}</p>}
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
