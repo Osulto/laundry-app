@@ -6,7 +6,9 @@ import {
     updateProfile,
     sendPasswordResetEmail 
 } from 'firebase/auth';
-import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+
+
 
 import { auth, db } from './firebase/config';
 import useAuth from './hooks/useAuth';
@@ -15,6 +17,7 @@ import SignUpForm from './components/auth/SignUpForm';
 import ForgotPasswordForm from './components/auth/ForgotPasswordForm';
 import DashboardPage from './pages/DashboardPage';
 import LoadingSpinner from './components/common/LoadingSpinner';
+
 
 const hashString = async (str) => {
     const encoder = new TextEncoder();
@@ -56,6 +59,7 @@ const getFriendlyAuthErrorMessage = (errorCode) => {
 };
 
 export default function App() {
+    const [lastLoginInfo, setLastLoginInfo] = useState(null);
     const { user, loading } = useAuth();
     const [view, setView] = useState('login'); 
 
@@ -82,13 +86,84 @@ export default function App() {
 
     const handleLogin = async (email, password) => {
         try {
+            // 1. Query user by email to get user ID (uid)
+            const q = query(collection(db, 'users'), where('email', '==', email));
+            const querySnapshot = await getDocs(q);
+    
+            if (querySnapshot.empty) {
+                // No user found - can't update last login info
+                return { success: false, message: 'Invalid username and/or password.' };
+            }
+    
+            const userDoc = querySnapshot.docs[0];
+            const userId = userDoc.id;
+    
+            const userRef = doc(db, 'users', userId);
+    
+            // --- Put it here: get the previous lastLoginAttempt before signing in ---
+            const userSnap = await getDoc(userRef);
+            const prevLoginInfo = userSnap.exists() ? userSnap.data().lastLoginAttempt : null;
+            console.log("Previous lastLoginAttempt raw:", prevLoginInfo);
+    
+            // 2. Try to sign in
             await signInWithEmailAndPassword(auth, email, password);
-            return { success: true };
+    
+            // 3. On success, update lastLoginAttempt with success = true and timestamp = now
+            await updateDoc(userRef, {
+                lastLoginAttempt: {
+                    timestamp: serverTimestamp(),
+                    success: true,
+                }
+            });
+
+            setLastLoginInfo(prevLoginInfo ? {
+                timestamp: prevLoginInfo.timestamp?.toDate ? prevLoginInfo.timestamp.toDate() : prevLoginInfo.timestamp,
+                success: prevLoginInfo.success
+              } : null);
+    
+            // 4. Return success + previous last login info
+            return { 
+                success: true, 
+                lastLogin: prevLoginInfo ? {
+                    timestamp: prevLoginInfo.timestamp?.toDate ? prevLoginInfo.timestamp.toDate() : prevLoginInfo.timestamp,
+                    success: prevLoginInfo.success
+                } : null 
+            };
+      
         } catch (error) {
-            console.error("Login Error:", error.code, error.message);
-            return { success: false, message: getFriendlyAuthErrorMessage(error.code) };
+          console.error("Login Error:", error.code, error.message);
+      
+          // On failure, still update lastLoginAttempt with success = false
+          try {
+            // Try to find user doc by email
+            const q = query(collection(db, 'users'), where('email', '==', email));
+            const querySnapshot = await getDocs(q);
+      
+            if (!querySnapshot.empty) {
+              const userId = querySnapshot.docs[0].id;
+              const userRef = doc(db, 'users', userId);
+      
+              // Update last login attempt as failed
+              await updateDoc(userRef, {
+                lastLoginAttempt: {
+                  timestamp: serverTimestamp(),
+                  success: false,
+                },
+                email: email // must be same email for the rule to pass
+              });
+              
+              setLastLoginInfo({
+                timestamp: new Date(), // just use current time since serverTimestamp() is async
+                success: false
+              });
+            }
+          } catch (err) {
+            console.error("Failed to update last login attempt after login error:", err);
+          }
+      
+          return { success: false, message: getFriendlyAuthErrorMessage(error.code) };
         }
-    };
+      };
 
     const handleLogout = async () => {
         try {
@@ -152,7 +227,7 @@ export default function App() {
     return (
         <div className="bg-gray-100 min-h-screen flex items-center justify-center font-sans p-4">
             {user ? (
-                <DashboardPage user={user} onLogout={handleLogout} />
+                <DashboardPage user={user} onLogout={handleLogout} lastLoginInfo={lastLoginInfo} />
             ) : (
                 renderAuthView()
             )}

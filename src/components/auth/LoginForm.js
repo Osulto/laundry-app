@@ -6,21 +6,35 @@ const LoginForm = ({ onLogin, switchToSignup, switchToForgotPassword }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [lastLoginInfo, setLastLoginInfo] = useState(null);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         const result = await onLogin(email, password);
+        console.log('Login result:', result); // <-- add this line
         if (!result.success) {
-            setError(result.message);
+          setError(result.message);
+          setLastLoginInfo(null);
+        } else {
+          setLastLoginInfo(result.lastLogin || null);
         }
         setLoading(false);
-    };
+      };
+      
 
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
             <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Welcome Back!</h2>
+            {lastLoginInfo && (
+                <p className="bg-yellow-100 text-yellow-900 p-3 rounded-md mb-4 text-sm">
+                Last login was on{' '}
+                <strong>{new Date(lastLoginInfo.timestamp).toLocaleString()}</strong> -{' '}
+                {lastLoginInfo.success ? 'Successful' : 'Failed'}
+                </p>
+            )}
+
             {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">

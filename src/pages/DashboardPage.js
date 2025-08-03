@@ -178,7 +178,7 @@ const CustomerDashboard = ({ user }) => (
 
 
 // --- Main Dashboard Page Component ---
-const DashboardPage = ({ user, onLogout }) => {
+const DashboardPage = ({ user, onLogout, lastLoginInfo }) => {
     const renderDashboardByRole = () => {
         switch (user.role) {
             case 'Administrator':
@@ -196,6 +196,13 @@ const DashboardPage = ({ user, onLogout }) => {
             <div className="flex justify-between items-start mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">Welcome, {user?.displayName || user?.fullName}!</h1>
+                    {lastLoginInfo && (
+                        <p className="bg-yellow-100 text-yellow-900 p-3 rounded-md mt-2 max-w-md text-sm">
+                        Last login was on{' '}
+                        <strong>{new Date(lastLoginInfo.timestamp).toLocaleString()}</strong> -{' '}
+                        {lastLoginInfo.success ? 'Successful' : 'Failed'}
+                        </p>
+                    )}
                 </div>
                 <button
                     onClick={onLogout}
