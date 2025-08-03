@@ -1,12 +1,32 @@
 import React, { useState } from 'react';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useEffect } from 'react';
 
 const SignUpForm = ({ onSignup, switchToLogin }) => {
+    useEffect(() => {
+        const randomIndex = Math.floor(Math.random() * securityQuestions.length);
+        setSelectedQuestion(securityQuestions[randomIndex]);
+    }, []);
+    
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [securityAnswer1, setSecurityAnswer1] = useState('');
-    const [securityAnswer2, setSecurityAnswer2] = useState('');
+    const securityQuestions = [
+        "What was the name of your first-grade teacher?",
+        "What is the name of the street you grew up on?",
+        "What was your childhood nickname?",
+        "What was the name of your first pet?",
+        "What city were you born in?",
+        "What was the make and model of your first car?",
+        "What is your mother's maiden name?",
+        "In what city did your parents meet?",
+        "What was the name of your favorite childhood friend?",
+        "What was the first concert you attended?"
+    ];    
+    
+    const [selectedQuestion, setSelectedQuestion] = useState('');
+    const [securityAnswer, setSecurityAnswer] = useState('');
+    
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -16,14 +36,14 @@ const SignUpForm = ({ onSignup, switchToLogin }) => {
             setError("Password must be at least 8 characters long.");
             return;
         }
-        if (!securityAnswer1 || !securityAnswer2) {
-            setError("Please answer both security questions.");
+        if (!securityAnswer) {
+            setError("Please answer the security question.");
             return;
         }
         setError('');
         setLoading(true);
         // Pass the new answers to the onSignup function
-        const result = await onSignup(email, password, fullName, securityAnswer1, securityAnswer2);
+        const result = await onSignup(email, password, fullName, securityAnswer, selectedQuestion);
         if (!result.success) {
             setError(result.message);
         }
@@ -79,35 +99,26 @@ const SignUpForm = ({ onSignup, switchToLogin }) => {
                 </div>
 
                 {/* --- NEW SECURITY QUESTIONS --- */}
-                <div className="my-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                     <h3 className="text-lg font-semibold text-gray-700 mb-3">Security Questions</h3>
-                     <div className="mb-4">
-                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="security-q1">
-                            What was the name of your first-grade teacher?
-                        </label>
-                        <input
-                            id="security-q1"
-                            type="text"
-                            value={securityAnswer1}
-                            onChange={(e) => setSecurityAnswer1(e.target.value)}
-                            className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="security-q2">
-                           What is the name of the street you grew up on?
-                        </label>
-                        <input
-                            id="security-q2"
-                            type="text"
-                            value={securityAnswer2}
-                            onChange={(e) => setSecurityAnswer2(e.target.value)}
-                            className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
-                </div>
+                
+                {selectedQuestion && (
+    <div className="my-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-3">Security Question</h3>
+        <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="security-answer">
+                {selectedQuestion}
+            </label>
+            <input
+                id="security-answer"
+                type="text"
+                value={securityAnswer}
+                onChange={(e) => setSecurityAnswer(e.target.value)}
+                className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+            />
+        </div>
+    </div>
+)}
+
 
                 <div className="flex items-center justify-between">
                     <button
