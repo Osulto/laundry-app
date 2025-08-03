@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import LoadingSpinner from '../common/LoadingSpinner';
 
-const LoginForm = ({ onLogin, switchToSignup }) => {
+const LoginForm = ({ onLogin, switchToSignup, switchToForgotPassword }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -36,7 +36,7 @@ const LoginForm = ({ onLogin, switchToSignup }) => {
                         required
                     />
                 </div>
-                <div className="mb-6">
+                <div className="mb-4">
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="login-password">
                         Password
                     </label>
@@ -48,6 +48,16 @@ const LoginForm = ({ onLogin, switchToSignup }) => {
                         className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                     />
+                </div>
+                {/* --- NEW FORGOT PASSWORD LINK --- */}
+                <div className="text-right mb-6">
+                    <button 
+                        type="button"
+                        onClick={switchToForgotPassword} 
+                        className="text-sm text-blue-600 hover:text-blue-800 font-semibold"
+                    >
+                        Forgot Password?
+                    </button>
                 </div>
                 <div className="flex items-center justify-between">
                     <button

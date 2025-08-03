@@ -5,19 +5,25 @@ const SignUpForm = ({ onSignup, switchToLogin }) => {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [securityAnswer1, setSecurityAnswer1] = useState('');
+    const [securityAnswer2, setSecurityAnswer2] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // Basic client-side validation
         if (password.length < 8) {
             setError("Password must be at least 8 characters long.");
             return;
         }
+        if (!securityAnswer1 || !securityAnswer2) {
+            setError("Please answer both security questions.");
+            return;
+        }
         setError('');
         setLoading(true);
-        const result = await onSignup(email, password, fullName);
+        // Pass the new answers to the onSignup function
+        const result = await onSignup(email, password, fullName, securityAnswer1, securityAnswer2);
         if (!result.success) {
             setError(result.message);
         }
@@ -29,6 +35,7 @@ const SignUpForm = ({ onSignup, switchToLogin }) => {
             <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Create an Account</h2>
             {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
             <form onSubmit={handleSubmit}>
+                {/* Full Name, Email, and Password fields remain the same */}
                 <div className="mb-4">
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="signup-fullname">
                         Full Name
@@ -55,7 +62,7 @@ const SignUpForm = ({ onSignup, switchToLogin }) => {
                         required
                     />
                 </div>
-                <div className="mb-6">
+                <div className="mb-4">
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="signup-password">
                         Password
                     </label>
@@ -69,8 +76,39 @@ const SignUpForm = ({ onSignup, switchToLogin }) => {
                         pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
                         title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
                     />
-                     <p className="text-xs text-gray-500 mt-1">At least 8 characters, with uppercase, lowercase, and numbers.</p>
                 </div>
+
+                {/* --- NEW SECURITY QUESTIONS --- */}
+                <div className="my-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                     <h3 className="text-lg font-semibold text-gray-700 mb-3">Security Questions</h3>
+                     <div className="mb-4">
+                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="security-q1">
+                            What was the name of your first-grade teacher?
+                        </label>
+                        <input
+                            id="security-q1"
+                            type="text"
+                            value={securityAnswer1}
+                            onChange={(e) => setSecurityAnswer1(e.target.value)}
+                            className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="security-q2">
+                           What is the name of the street you grew up on?
+                        </label>
+                        <input
+                            id="security-q2"
+                            type="text"
+                            value={securityAnswer2}
+                            onChange={(e) => setSecurityAnswer2(e.target.value)}
+                            className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+                </div>
+
                 <div className="flex items-center justify-between">
                     <button
                         type="submit"
