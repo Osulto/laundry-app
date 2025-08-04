@@ -3,8 +3,6 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // --- Firebase Configuration ---
-// IMPORTANT: Replace with your actual Firebase project configuration.
-// It's highly recommended to use environment variables for this in a real project.
 const firebaseConfig = {
   apiKey: "AIzaSyBc3DSf2ev1Zfbp9IvhpOv2tmptcEx9GFY",
   authDomain: "secdev-7753c.firebaseapp.com",

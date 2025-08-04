@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 const LoginForm = ({ onLogin, switchToSignup, switchToForgotPassword }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false); // State to manage password visibility
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [lastLoginInfo, setLastLoginInfo] = useState(null);
@@ -13,7 +15,6 @@ const LoginForm = ({ onLogin, switchToSignup, switchToForgotPassword }) => {
         setError('');
         setLoading(true);
         const result = await onLogin(email, password);
-        console.log('Login result:', result); // <-- add this line
         if (!result.success) {
           setError(result.message);
           setLastLoginInfo(null);
@@ -23,7 +24,6 @@ const LoginForm = ({ onLogin, switchToSignup, switchToForgotPassword }) => {
         setLoading(false);
       };
       
-
     return (
         <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
             <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Welcome Back!</h2>
@@ -54,16 +54,30 @@ const LoginForm = ({ onLogin, switchToSignup, switchToForgotPassword }) => {
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="login-password">
                         Password
                     </label>
-                    <input
-                        id="login-password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    />
+                    {/* --- Container for Password Input and Icon --- */}
+                    <div className="relative">
+                        <input
+                            id="login-password"
+                            type={showPassword ? 'text' : 'password'} // Dynamically change input type
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="shadow-sm appearance-none border rounded-md w-full py-3 px-4 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                            style={{ top: '-0.375rem' }} // Adjust vertical position
+                        >
+                            {showPassword ? (
+                                <EyeSlashIcon className="h-5 w-5" />
+                            ) : (
+                                <EyeIcon className="h-5 w-5" />
+                            )}
+                        </button>
+                    </div>
                 </div>
-                {/* --- NEW FORGOT PASSWORD LINK --- */}
                 <div className="text-right mb-6">
                     <button 
                         type="button"

@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, UserIcon } from '@heroicons/react/24/outline';
 import { db } from '../firebase/config';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-// Import the new components
 import CreateOrderForm from '../components/orders/CreateOrderForm';
 import OrderList from '../components/orders/OrderList';
 import ChangePasswordForm from '../components/auth/ChangePasswordForm';
-import { UserIcon } from '@heroicons/react/24/outline';
-
+import { logger } from '../utils/logger';
+import LogViewer from '../components/admin/LogViewer';
 
 // --- User Management Component (for Admins) ---
-const UserManagement = () => {
-    // ... (This component's code remains the same as before)
+const UserManagement = ({ currentUser }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -26,14 +24,18 @@ const UserManagement = () => {
                 const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setUsers(userList);
             } catch (err) {
-                console.error("Error fetching users:", err);
+                logger.error('fetch_users_failure', {
+                    success: false,
+                    userId: currentUser.uid,
+                    errorMessage: err.message
+                });
                 setError('Failed to fetch user data.');
             }
             setLoading(false);
         };
 
         fetchUsers();
-    }, []);
+    }, [currentUser.uid]);
 
     const handleRoleChange = async (userId, newRole) => {
         setError('');
@@ -44,8 +46,20 @@ const UserManagement = () => {
             
             setUsers(users.map(user => user.id === userId ? { ...user, role: newRole } : user));
             setSuccess(`Successfully updated role.`);
+            
+            logger.access('role_change_success', {
+                success: true,
+                adminId: currentUser.uid,
+                details: { targetUserId: userId, newRole: newRole }
+            });
+
         } catch (err) {
-            console.error("Error updating role:", err);
+            logger.access('role_change_failure', {
+                success: false,
+                adminId: currentUser.uid,
+                errorMessage: err.message,
+                details: { targetUserId: userId, newRole: newRole }
+            });
             setError('Failed to update user role. Please try again.');
         }
     };
@@ -59,8 +73,20 @@ const UserManagement = () => {
                 await deleteDoc(doc(db, 'users', userId));
                 setUsers(users.filter(user => user.id !== userId));
                 setSuccess(`Successfully deleted user ${userFullName}.`);
+                
+                logger.access('delete_user_success', {
+                    success: true,
+                    adminId: currentUser.uid,
+                    details: { deletedUserId: userId, deletedUserName: userFullName }
+                });
+
             } catch (err) {
-                console.error("Error deleting user document:", err);
+                logger.access('delete_user_failure', {
+                    success: false,
+                    adminId: currentUser.uid,
+                    errorMessage: err.message,
+                    details: { targetUserId: userId }
+                });
                 setError(`Failed to delete user: ${err.message}`);
             }
         }
@@ -149,7 +175,8 @@ const AdminDashboard = ({ user }) => (
             <h3 className="font-bold">Administrator View</h3>
             <p>You have full system control.</p>
         </div>
-        <UserManagement />
+        <UserManagement currentUser={user} />
+        <LogViewer />
     </div>
 );
 
@@ -176,7 +203,7 @@ const CustomerDashboard = ({ user }) => (
 
 
 // --- Main Dashboard Page Component ---
-const DashboardPage = ({ user, onLogout, lastLoginInfo, onNavigateToChangePassword }) => {
+const DashboardPage = ({ user, onLogout, lastLoginInfo }) => {
     const renderDashboardByRole = () => {
         switch (user.role) {
             case 'Administrator':
@@ -253,13 +280,12 @@ const DashboardPage = ({ user, onLogout, lastLoginInfo, onNavigateToChangePasswo
                     )}
                 </div>
 
-{showModal && <ChangePasswordForm onClose={() => setShowModal(false)} />}
+                {showModal && <ChangePasswordForm onClose={() => setShowModal(false)} />}
             </div>
     
             {renderDashboardByRole()}
         </div>
     );
-    
 };
 
 export default DashboardPage;

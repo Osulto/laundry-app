@@ -42,7 +42,6 @@ const SignUpForm = ({ onSignup, switchToLogin }) => {
         }
         setError('');
         setLoading(true);
-        // Pass the new answers to the onSignup function
         const result = await onSignup(email, password, fullName, securityAnswer, selectedQuestion);
         if (!result.success) {
             setError(result.message);
@@ -55,7 +54,7 @@ const SignUpForm = ({ onSignup, switchToLogin }) => {
             <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Create an Account</h2>
             {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</p>}
             <form onSubmit={handleSubmit}>
-                {/* Full Name, Email, and Password fields remain the same */}
+                {/* Full Name, Email, and Password fields  same */}
                 <div className="mb-4">
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="signup-fullname">
                         Full Name

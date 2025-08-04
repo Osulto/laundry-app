@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { logger } from '../../utils/logger'; // Import logger
 
 const CreateOrderForm = ({ user }) => {
     const [items, setItems] = useState([{ name: '', quantity: '' }]);
@@ -28,26 +29,51 @@ const CreateOrderForm = ({ user }) => {
 
         // Validation
         if (items.some(item => !item.name.trim() || !item.quantity)) {
-            setError('Please fill in all item fields.');
+            const errorMessage = 'Please fill in all item fields.';
+            setError(errorMessage);
             setLoading(false);
+            
+            // Requirement 2.4.5: Log all input validation failures
+            logger.validation('create_order_validation_failure', {
+                success: false,
+                userId: user.uid,
+                userEmail: user.email,
+                errorMessage: errorMessage,
+                details: { items, notes }
+            });
+
             return;
         }
 
         try {
-            await addDoc(collection(db, 'orders'), {
+            const docRef = await addDoc(collection(db, 'orders'), {
                 customerId: user.uid,
                 customerName: user.fullName,
-                items: items, // array of { name, quantity }
+                items: items,
                 notes: notes,
                 status: 'Pending',
                 createdAt: serverTimestamp(),
+            });
+
+            // Log successful order creation
+            logger.access('create_order_success', {
+                success: true,
+                userId: user.uid,
+                userEmail: user.email,
+                details: { orderId: docRef.id }
             });
 
             setSuccess('Your order has been placed successfully!');
             setItems([{ name: '', quantity: '' }]);
             setNotes('');
         } catch (err) {
-            console.error("Error creating order: ", err);
+            // Log failed order creation
+            logger.error('create_order_failure', {
+                success: false,
+                userId: user.uid,
+                userEmail: user.email,
+                errorMessage: err.message
+            });
             setError('Failed to place order. Please try again.');
         } finally {
             setLoading(false);

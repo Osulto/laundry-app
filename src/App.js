@@ -3,12 +3,9 @@ import {
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword, 
     signOut,
-    updateProfile,
-    sendPasswordResetEmail 
+    updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, collection, query, where, getDocs, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-
-
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 import { auth, db } from './firebase/config';
 import useAuth from './hooks/useAuth';
@@ -17,7 +14,8 @@ import SignUpForm from './components/auth/SignUpForm';
 import ForgotPasswordForm from './components/auth/ForgotPasswordForm';
 import DashboardPage from './pages/DashboardPage';
 import LoadingSpinner from './components/common/LoadingSpinner';
-
+import ErrorBoundary from './components/common/ErrorBoundary';
+import { logger } from './utils/logger';
 
 const hashString = async (str) => {
     const encoder = new TextEncoder();
@@ -26,21 +24,6 @@ const hashString = async (str) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
-
-const checkEmailExists = async (email) => {
-    const q = query(collection(db, 'users'), where('email', '==', email));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-        const userDoc = snapshot.docs[0].data();
-        return {
-            exists: true,
-            securityQuestion: userDoc.securityQuestion || 'What is your favorite color?',
-        };
-    }
-    return { exists: false };
-};
-
-
 
 const getFriendlyAuthErrorMessage = (errorCode) => {
     switch (errorCode) {
@@ -68,60 +51,56 @@ export default function App() {
             const hashedAnswer = await hashString(securityAnswer);
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const newUser = userCredential.user;
+            const standardizedEmail = email.toLowerCase(); // Standardize email to lowercase
+
             await updateProfile(newUser, { displayName: fullName });
+
+            // Set private user data in 'users' collection
             await setDoc(doc(db, "users", newUser.uid), {
                 fullName: fullName,
-                email: newUser.email,
+                email: standardizedEmail, // Store the standardized email
                 role: 'Customer',
                 createdAt: new Date(),
-                securityQuestion: selectedQuestion,
-                securityAnswerHash: hashedAnswer
             });
+
+            // Set public security question data using the standardized email as the document ID
+            await setDoc(doc(db, "publicSecurityQuestions", standardizedEmail), {
+                question: selectedQuestion,
+                answerHash: hashedAnswer
+            });
+
+            logger.auth('signup_success', { success: true, userId: newUser.uid, userEmail: standardizedEmail });
             return { success: true };
         } catch (error) {
-            console.error("Signup Error:", error.code, error.message);
+            logger.auth('signup_failure', { success: false, userEmail: email, errorMessage: error.message });
             return { success: false, message: getFriendlyAuthErrorMessage(error.code) };
         }
     };
 
     const handleLogin = async (email, password) => {
         try {
-            // 1. Query user by email to get user ID (uid)
-            const q = query(collection(db, 'users'), where('email', '==', email));
-            const querySnapshot = await getDocs(q);
-    
-            if (querySnapshot.empty) {
-                // No user found - can't update last login info
-                return { success: false, message: 'Invalid username and/or password.' };
-            }
-    
-            const userDoc = querySnapshot.docs[0];
-            const userId = userDoc.id;
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const loggedInUser = userCredential.user;
+            const userId = loggedInUser.uid;
     
             const userRef = doc(db, 'users', userId);
-    
-            // --- Put it here: get the previous lastLoginAttempt before signing in ---
             const userSnap = await getDoc(userRef);
             const prevLoginInfo = userSnap.exists() ? userSnap.data().lastLoginAttempt : null;
-            console.log("Previous lastLoginAttempt raw:", prevLoginInfo);
     
-            // 2. Try to sign in
-            await signInWithEmailAndPassword(auth, email, password);
-    
-            // 3. On success, update lastLoginAttempt with success = true and timestamp = now
             await updateDoc(userRef, {
                 lastLoginAttempt: {
                     timestamp: serverTimestamp(),
                     success: true,
                 }
             });
-
+    
+            logger.auth('login_success', { success: true, userId: userId, userEmail: email });
+    
             setLastLoginInfo(prevLoginInfo ? {
                 timestamp: prevLoginInfo.timestamp?.toDate ? prevLoginInfo.timestamp.toDate() : prevLoginInfo.timestamp,
                 success: prevLoginInfo.success
               } : null);
     
-            // 4. Return success + previous last login info
             return { 
                 success: true, 
                 lastLogin: prevLoginInfo ? {
@@ -131,78 +110,21 @@ export default function App() {
             };
       
         } catch (error) {
-          console.error("Login Error:", error.code, error.message);
-      
-          // On failure, still update lastLoginAttempt with success = false
-          try {
-            // Try to find user doc by email
-            const q = query(collection(db, 'users'), where('email', '==', email));
-            const querySnapshot = await getDocs(q);
-      
-            if (!querySnapshot.empty) {
-              const userId = querySnapshot.docs[0].id;
-              const userRef = doc(db, 'users', userId);
-      
-              // Update last login attempt as failed
-              await updateDoc(userRef, {
-                lastLoginAttempt: {
-                  timestamp: serverTimestamp(),
-                  success: false,
-                },
-                email: email // must be same email for the rule to pass
-              });
-              
-              setLastLoginInfo({
-                timestamp: new Date(), // just use current time since serverTimestamp() is async
-                success: false
-              });
-            }
-          } catch (err) {
-            console.error("Failed to update last login attempt after login error:", err);
-          }
-      
-          return { success: false, message: getFriendlyAuthErrorMessage(error.code) };
+            logger.auth('login_failure', { success: false, userEmail: email, errorMessage: error.message });
+            return { success: false, message: getFriendlyAuthErrorMessage(error.code) };
         }
-      };
+    };
 
     const handleLogout = async () => {
         try {
+            const userId = user?.uid;
+            const userEmail = user?.email;
             await signOut(auth);
+            logger.auth('logout_success', { success: true, userId, userEmail });
         } catch (error) {
-            console.error("Logout Error:", error);
+            logger.auth('logout_failure', { success: false, userId: user?.uid, userEmail: user?.email, errorMessage: error.message });
         }
     };
-
-    const handlePasswordReset = async (email, securityAnswer) => {
-        try {
-            const usersRef = collection(db, "users");
-            const q = query(usersRef, where("email", "==", email));
-            const querySnapshot = await getDocs(q);  // ✅ You missed this line before
-    
-            if (querySnapshot.empty) {
-                return { success: false, message: "No account found with that email address." };
-            }
-    
-            const userDoc = querySnapshot.docs[0];
-            const userData = userDoc.data();
-    
-            const hashedAnswer = await hashString(securityAnswer);
-    
-            if (hashedAnswer !== userData.securityAnswerHash) {
-                return { success: false, message: "The security answer is incorrect." };
-            }
-    
-            await sendPasswordResetEmail(auth, email);
-            return { success: true, message: "A password reset link has been sent to your email." };
-    
-        } catch (error) {
-            console.error("Password Reset Error:", error);
-            return { success: false, message: "An unexpected error occurred. Please try again." };
-        }
-    };
-    
-    
-
 
     if (loading) {
         return (
@@ -217,7 +139,7 @@ export default function App() {
             case 'signup':
                 return <SignUpForm onSignup={handleSignup} switchToLogin={() => setView('login')} />;
             case 'forgotPassword':
-                return <ForgotPasswordForm onReset={handlePasswordReset} switchToLogin={() => setView('login')} checkEmailExists={checkEmailExists} />;
+                return <ForgotPasswordForm switchToLogin={() => setView('login')} />;
             case 'login':
             default:
                 return <LoginForm onLogin={handleLogin} switchToSignup={() => setView('signup')} switchToForgotPassword={() => setView('forgotPassword')} />;
@@ -225,12 +147,14 @@ export default function App() {
     }
 
     return (
-        <div className="bg-gray-100 min-h-screen flex items-center justify-center font-sans p-4">
-            {user ? (
-                <DashboardPage user={user} onLogout={handleLogout} lastLoginInfo={lastLoginInfo} />
-            ) : (
-                renderAuthView()
-            )}
-        </div>
+        <ErrorBoundary>
+            <div className="bg-gray-100 min-h-screen flex items-center justify-center font-sans p-4">
+                {user ? (
+                    <DashboardPage user={user} onLogout={handleLogout} lastLoginInfo={lastLoginInfo} />
+                ) : (
+                    renderAuthView()
+                )}
+            </div>
+        </ErrorBoundary>
     );
 }

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc, onSnapshot,deleteDoc} from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { TrashIcon } from '@heroicons/react/24/outline';
-
-
+import { logger } from '../../utils/logger';
 
 const OrderList = ({ user }) => {
     const [orders, setOrders] = useState([]);
@@ -12,73 +11,97 @@ const OrderList = ({ user }) => {
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
+    const isManager = user.role === 'Manager' || user.role === 'Administrator';
+
     const handleDeleteOrder = async (orderId) => {
         if (!window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) return;
+        
         try {
             await deleteDoc(doc(db, 'orders', orderId));
-            setOrders(orders.filter(order => order.id !== orderId));
+            logger.access('delete_order_success', {
+                success: true,
+                userId: user.uid,
+                userEmail: user.email, // Added user email
+                details: { orderId }
+            });
         } catch (err) {
-            console.error("Error deleting order:", err);
+            logger.access('delete_order_failure', {
+                success: false,
+                userId: user.uid,
+                userEmail: user.email, // Added user email
+                errorMessage: err.message,
+                details: { orderId }
+            });
             setError('Failed to delete order.');
         }
     };
-    
 
     const toJsDate = (timestamp) => {
         if (!timestamp) return null;
         if (typeof timestamp.toDate === 'function') {
-          return timestamp.toDate();
+            return timestamp.toDate();
         }
         if (timestamp instanceof Date) return timestamp;
         return null;
-      };
-      
-
-    const isManager = user.role === 'Manager' || user.role === 'Administrator';
+    };
 
     useEffect(() => {
         const ordersCollection = collection(db, 'orders');
         let q;
-    
+
         if (isManager) {
             q = query(ordersCollection);
         } else {
             q = query(ordersCollection, where("customerId", "==", user.uid));
         }
-    
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const orderList = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-    
-            // Sort orders by date
+
             orderList.sort((a, b) => {
                 const dateA = toJsDate(a.createdAt)?.getTime() ?? 0;
                 const dateB = toJsDate(b.createdAt)?.getTime() ?? 0;
                 return dateB - dateA;
-              });
-              
-    
+            });
+
             setOrders(orderList);
             setLoading(false);
         }, (err) => {
-            console.error("Error with real-time orders:", err);
+            logger.access('fetch_orders_failure', {
+                success: false,
+                userId: user.uid,
+                userEmail: user.email, // Added user email
+                userRole: user.role,
+                errorMessage: err.message
+            });
             setError('Failed to load real-time orders.');
             setLoading(false);
         });
-    
-        return () => unsubscribe(); // Clean up listener when component unmounts
-    }, [user.uid, user.role, isManager]);
-    
+
+        return () => unsubscribe();
+    }, [user.uid, user.role, user.email]); // Corrected: Removed isManager from dependency array
 
     const handleStatusChange = async (orderId, newStatus) => {
         try {
             const orderDoc = doc(db, 'orders', orderId);
             await updateDoc(orderDoc, { status: newStatus });
-            setOrders(orders.map(order => order.id === orderId ? { ...order, status: newStatus } : order));
+            logger.access('update_order_status_success', {
+                success: true,
+                userId: user.uid,
+                userEmail: user.email, // Added user email
+                details: { orderId, newStatus }
+            });
         } catch (err) {
-            console.error("Error updating status:", err);
+            logger.access('update_order_status_failure', {
+                success: false,
+                userId: user.uid,
+                userEmail: user.email, // Added user email
+                errorMessage: err.message,
+                details: { orderId, newStatus }
+            });
             setError('Failed to update order status.');
         }
     };
@@ -108,23 +131,17 @@ const OrderList = ({ user }) => {
                 />
             )}
 
-
             <div className="overflow-x-auto bg-white rounded-lg shadow">
                 <table className="min-w-full leading-normal">
-                <thead>
-                <tr>
-                    {isManager && <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>}
-                    <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Items</th>
-                    <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                    <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    {isManager && (
-                        <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Actions
-                        </th>
-                    )}
-                </tr>
-            </thead>
-
+                    <thead>
+                        <tr>
+                            {isManager && <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>}
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Items</th>
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                            {isManager && <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>}
+                        </tr>
+                    </thead>
                     <tbody>
                         {filteredOrders.length > 0 ? filteredOrders.map(order => (
                             <tr key={order.id}>
@@ -145,8 +162,7 @@ const OrderList = ({ user }) => {
                                     {order.notes && <p className="text-gray-600 text-xs mt-1">Notes: {order.notes}</p>}
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                <p className="text-gray-900 whitespace-no-wrap">{toJsDate(order.createdAt)?.toLocaleDateString() ?? 'No date available'}</p>
-
+                                    <p className="text-gray-900 whitespace-no-wrap">{toJsDate(order.createdAt)?.toLocaleDateString() ?? 'No date available'}</p>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                     {isManager ? (
@@ -175,9 +191,9 @@ const OrderList = ({ user }) => {
                                                     : 'text-gray-900 bg-gray-100'
                                                 }
                                             `}
-                                            >
+                                        >
                                             {order.status}
-                                            </span>
+                                        </span>
                                     )}
                                 </td>
                                 {isManager && (
@@ -187,7 +203,7 @@ const OrderList = ({ user }) => {
                                             className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
                                             title="Delete Order"
                                         >
-                                        <TrashIcon className="h-5 w-5" />
+                                            <TrashIcon className="h-5 w-5" />
                                         </button>
                                     </td>
                                 )}
